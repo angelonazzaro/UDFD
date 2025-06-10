@@ -6,6 +6,12 @@ __pycache__/
 # C extensions
 *.so
 
+# Misc
+dataset/
+.venv/
+gradcam_explanations/
+
+
 # Distribution / packaging
 .Python
 build/
@@ -172,6 +178,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
 /dataset/
 .gradio
-
+.idea
