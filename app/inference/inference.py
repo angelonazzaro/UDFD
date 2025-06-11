@@ -9,7 +9,6 @@ from PIL import Image
 from transformers import AutoImageProcessor, AutoModelForImageClassification
 from flask import Flask, request, jsonify
 
-upload = False  # TODO
 app = Flask("Inference")
 
 
@@ -27,6 +26,10 @@ def classify_image():
             return jsonify({"error": "No image file provided"}), 400
 
         file = request.files["image"]
+
+        upload = request.form.get("upload", "false").lower() == "true"
+        log(f"Image upload requested: {upload}")
+
         if file.filename == "":
             log("No selected file")
             return jsonify({"error": "No selected file"}), 400
@@ -41,7 +44,7 @@ def classify_image():
 
     if upload:
         log("Uploading image")
-        image.save(f"dataset/uploaded/{time.time()}.jpg")
+        image.save(f"uploaded/{int(time.time())}.jpg")
 
     inputs = processor(images=image, return_tensors="pt")
     image.close()

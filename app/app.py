@@ -23,7 +23,13 @@ def hello() -> str:
 @app.route("/api/classify", methods=["POST"])
 def classify():
     log(f"User accessed {request.path} with method {request.method}")
-    response = requests.post("http://inference:5555/classify", files=request.files)
+    files = request.files
+    data = {"upload": request.form.get("upload", "false")}
+    response = requests.post(
+        "http://inference:5555/classify",
+        files=files,
+        data=data,
+    )
     return jsonify(response.json())
 
 

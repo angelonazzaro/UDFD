@@ -21,11 +21,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const initialState = document.getElementById('initialState');
   const loadingState = document.getElementById('loadingState');
   const resultState = document.getElementById('resultState');
+  const uploadCheck = document.getElementById('uploadCheck');
 
   // Bootstrap Toast Elements
-  const toastElement = document.getElementById('liveToast');
-  const toastBody = toastElement.querySelector('.toast-body');
-  const toast = new bootstrap.Toast(toastElement);
+  const liveToast = document.getElementById('liveToast');
+  const toastBody = liveToast.querySelector('.toast-body');
+  const toast = new bootstrap.Toast(liveToast);
 
   let uploadedFile = null;
 
@@ -47,7 +48,20 @@ document.addEventListener('DOMContentLoaded', () => {
   function handleFiles(files) {
     const file = files[0];
     if (file) {
-      // Optional: Add checks for file type and size here
+      // Check file type
+      const allowedTypes = ['image/jpeg', 'image/png'];
+      if (!allowedTypes.includes(file.type)) {
+        showAlert('Invalid file type. Please upload a JPG or PNG image.', 'error');
+        return;
+      }
+
+      // Check file size
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        showAlert('File is too large. Maximum size is 5MB.', 'error');
+        return;
+      }
+
       uploadedFile = file;
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -160,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Prepare form data to send
     const formData = new FormData();
     formData.append('image', uploadedFile);
+    formData.append('upload', uploadCheck.checked);
 
     try {
       // Send the image to the Flask backend
@@ -180,6 +195,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       displayResults(data.real, data.fake);
+      if (uploadCheck.checked) {
+        showAlert('Image uploaded successfully!', 'success');
+      }
 
     } catch (error) {
       console.error('Classification Error:', error);

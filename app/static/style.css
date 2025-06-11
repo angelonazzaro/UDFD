@@ -22,6 +22,7 @@ body {
   text-align: center;
   cursor: pointer;
   transition: background-color 0.3s, border-color 0.3s;
+  min-height: 24rem;
 }
 .upload-section:hover, .upload-section.dragover {
   background-color: #f1f3f5;

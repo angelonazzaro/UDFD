@@ -9,15 +9,21 @@
       <div class="col-lg-6">
         <div class="d-flex flex-column h-100">
           <div id="uploadSection" class="upload-section flex-grow-1 d-flex flex-column justify-content-center">
-            <input type="file" id="imageUpload" class="d-none" accept="image/png, image/jpeg, image/webp">
+            <input type="file" id="imageUpload" class="d-none" accept="image/png, image/jpeg">
             <div class="icon">
               <i class="fa-solid fa-cloud-arrow-up"></i>
             </div>
             <h5 class="mt-3">Click or drag & drop to upload an image</h5>
-            <p id="uploadHelp" class="mb-0">PNG, JPG, or WEBP. Max 5MB.</p>
+            <p id="uploadHelp" class="mb-0">JPG or PNG. Max 5MB.</p>
             <div class="image-preview-container">
               <img id="imagePreview" src="#" alt="Image Preview"/>
             </div>
+          </div>
+          <div class="form-check mt-3">
+            <input class="form-check-input" type="checkbox" value="" id="uploadCheck">
+            <label class="form-check-label" for="uploadCheck">
+              Upload image to our server
+            </label>
           </div>
           <button id="classifyBtn" class="btn btn-primary w-100 mt-3" disabled>
             <i class="fa-solid fa-magnifying-glass"></i> Classify Image

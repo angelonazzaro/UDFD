@@ -10,6 +10,7 @@ services:
       - inference-net
     volumes:
       - "./app/logs:/app/logs"
+      - "./dataset/uploaded:/app/uploaded"
     restart: unless-stopped
 
   web-app:
