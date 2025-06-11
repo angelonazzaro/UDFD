@@ -182,3 +182,5 @@ cython_debug/
 /dataset/
 .gradio
 .idea
+app/logs
+.DS_Store

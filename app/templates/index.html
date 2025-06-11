@@ -1,0 +1,60 @@
+{% with title="Classify" %}
+{% include 'header.html' %}
+{% endwith %}
+
+<main class="main-content py-4">
+  <div class="container">
+    <div class="row g-4">
+      <!-- Left Column: Upload -->
+      <div class="col-lg-6">
+        <div class="d-flex flex-column h-100">
+          <div id="uploadSection" class="upload-section flex-grow-1 d-flex flex-column justify-content-center">
+            <input type="file" id="imageUpload" class="d-none" accept="image/png, image/jpeg, image/webp">
+            <div class="icon">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+            </div>
+            <h5 class="mt-3">Click or drag & drop to upload an image</h5>
+            <p id="uploadHelp" class="mb-0">PNG, JPG, or WEBP. Max 5MB.</p>
+            <div class="image-preview-container">
+              <img id="imagePreview" src="#" alt="Image Preview"/>
+            </div>
+          </div>
+          <button id="classifyBtn" class="btn btn-primary w-100 mt-3" disabled>
+            <i class="fa-solid fa-magnifying-glass"></i> Classify Image
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Column: Result -->
+      <div class="col-lg-6">
+        <div id="resultSection" class="result-section">
+          <div id="initialState" class="text-center text-muted">
+            <i class="fa-solid fa-chart-simple" style="font-size: 3rem;"></i>
+            <h5 class="mt-3">Results will appear here</h5>
+            <p>Upload an image and click "Classify"</p>
+          </div>
+          <div id="loadingState" class="spinner-container">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Analyzing image...</p>
+          </div>
+          <div id="resultState" class="w-100" style="display: none;">
+            <!-- Results will be dynamically inserted here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="toast-container p-3 bottom-0 start-0">
+<div id="liveToast" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true">
+  <div class="d-flex">
+    <div class="toast-body"></div>
+    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+  </div>
+</div>
+</div>
+
+{% include 'footer.html' %}

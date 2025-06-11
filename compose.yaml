@@ -1,0 +1,31 @@
+name: udfd
+
+services:
+  inference:
+    build:
+      context: ./app/inference
+      dockerfile: Dockerfile
+    container_name: inference
+    networks:
+      - inference-net
+    volumes:
+      - "./app/logs:/app/logs"
+    restart: unless-stopped
+
+  web-app:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: web-app
+    networks:
+      - inference-net
+    ports:
+      - "5500:5500"
+    volumes:
+      - "./app/logs:/app/logs"
+    restart: unless-stopped
+    depends_on:
+      - inference
+
+networks:
+  inference-net:
