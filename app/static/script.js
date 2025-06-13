@@ -22,6 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const loadingState = document.getElementById('loadingState');
   const resultState = document.getElementById('resultState');
   const uploadCheck = document.getElementById('uploadCheck');
+  const explainCheck = document.getElementById('explainCheck');
+  const gradcamState = document.getElementById('gradcamState');
+  const gradcamImage = document.getElementById('gradcamImage');
 
   // Bootstrap Toast Elements
   const liveToast = document.getElementById('liveToast');
@@ -83,15 +86,18 @@ document.addEventListener('DOMContentLoaded', () => {
     initialState.style.display = 'block';
     resultState.style.display = 'none';
     loadingState.style.display = 'none';
+    gradcamState.style.display = 'none'; // Nasconde lo stato Grad-CAM
     resultState.innerHTML = '';
+    gradcamImage.src = '#'; // Resetta l'immagine Grad-CAM
   }
 
   /**
    * Displays the classification results with progress bars.
    * @param {number} real - The percentage for 'Real'.
    * @param {number} fake - The percentage for 'Fake'.
+   * @param {string} [gradcamPath] - Optional path to the Grad-CAM image.
    */
-  function displayResults(real, fake) {
+  function displayResults(real, fake, gradcamPath) {
     resultState.style.display = 'block';
     const resultHTML = `
       <h4 class="mb-4 text-center">Analysis Complete</h4>
@@ -117,6 +123,18 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     `;
     resultState.innerHTML = resultHTML;
+
+    if (gradcamPath) {
+      gradcamImage.src = gradcamPath;
+      gradcamState.style.display = 'block';
+      gradcamState.style.display = 'flex';
+    } else {
+      gradcamState.style.display = 'none';
+    }
+
+    if (real + fake !== 100.0) {
+      showAlert('WUT?');
+    }
   }
 
   function showAlert(message, type = 'info') {
@@ -175,6 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const formData = new FormData();
     formData.append('image', uploadedFile);
     formData.append('upload', uploadCheck.checked);
+    formData.append('explain', explainCheck.checked);
 
     try {
       // Send the image to the Flask backend
@@ -194,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(data.error);
       }
 
-      displayResults(data.real, data.fake);
+      displayResults(data.real, data.fake, data.gradcam_image_path);
       if (uploadCheck.checked) {
         showAlert('Image uploaded successfully!', 'success');
       }

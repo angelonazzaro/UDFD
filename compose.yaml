@@ -11,19 +11,21 @@ services:
     volumes:
       - "./app/logs:/app/logs"
       - "./dataset/uploaded:/app/uploaded"
+      - "./app/static/gradcam:/app/gradcam"
     restart: unless-stopped
 
-  web-app:
+  webapp:
     build:
       context: ./app
       dockerfile: Dockerfile
-    container_name: web-app
+    container_name: webapp
     networks:
       - inference-net
     ports:
       - "5500:5500"
     volumes:
       - "./app/logs:/app/logs"
+      - "./app/static/gradcam:/app/static/gradcam"
     restart: unless-stopped
     depends_on:
       - inference
