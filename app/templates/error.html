@@ -1,0 +1,11 @@
+{% with title=error %}
+  {% include 'header.html' %}
+{% endwith %}
+
+<div class="error-content">
+  <h2>{{ error }}</h2>
+  <p>{{ description }}</p>
+  <a href="{{ url_for('hello') }}" class="home-link">Back to Home</a>
+</div>
+
+{% include 'footer.html' %}

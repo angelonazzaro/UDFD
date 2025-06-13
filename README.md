@@ -17,3 +17,27 @@ The model will be usable through a web app developed with Flask with the followi
 - View the detection results
 - Visualize model explainability using Grad-CAM
 - Review model output and add training data
+
+## Installation and Running
+
+The project is containerized using Docker, making it easy to set up and run:
+
+1. Make sure you have [Docker](https://www.docker.com/get-started) and Docker Compose installed on your system
+2. Clone this repository
+3. From the project root directory, run:
+
+```bash
+# Build the Docker images
+docker compose build
+
+# Start the services in detached mode
+docker compose up -d
+```
+
+4. Access the web application by navigating to [localhost:5500](http://localhost:5500/) in your browser
+
+To stop the application:
+
+```bash
+docker compose down
+```
