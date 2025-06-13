@@ -115,6 +115,11 @@ def get_gradcam_image(image: Image.Image) -> str:
     return f"/static/gradcam/{timestamp}.jpg"
 
 
+@app.route("/health")
+def health() -> (str, int):
+    return "OK", 200
+
+
 if __name__ == "__main__":
     model_name = "dima806/deepfake_vs_real_image_detection"
     model = AutoModelForImageClassification.from_pretrained(model_name)

@@ -13,6 +13,12 @@ services:
       - "./dataset/uploaded:/app/uploaded"
       - "./app/static/gradcam:/app/gradcam"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5555/health"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   webapp:
     build:
@@ -28,7 +34,8 @@ services:
       - "./app/static/gradcam:/app/static/gradcam"
     restart: unless-stopped
     depends_on:
-      - inference
+      inference:
+        condition: service_healthy
 
 networks:
   inference-net:
