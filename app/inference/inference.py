@@ -43,10 +43,23 @@ def classify_image():
             log("No selected file")
             return jsonify({"error": "No selected file"}), 400
 
-        image = Image.open(io.BytesIO(file.read()))
-        image = image.resize((224, 224)).convert("RGB")
+        img_bytes = io.BytesIO(file.read())
+        image = Image.open(img_bytes)
         file.close()
-        log("Image file read successfully")
+
+        original_width, original_height = image.size
+        if original_width != original_height:
+            # Crop to a square from the center
+            short_side = min(original_width, original_height)
+            left = (original_width - short_side) / 2
+            top = (original_height - short_side) / 2
+            right = (original_width + short_side) / 2
+            bottom = (original_height + short_side) / 2
+            image = image.crop((left, top, right, bottom))
+
+        image = image.resize((224, 224))
+        image = image.convert("RGB")
+        log("Image file read, cropped to square, and resized successfully")
     except Exception as e:
         log("Error processing image: " + str(e))
         return jsonify({"error": f"Invalid image file: {e}"}), 400
@@ -67,7 +80,6 @@ def classify_image():
     image.close()
     response = jsonify(response_data)
     response.headers.add("Access-Control-Allow-Origin", "*")
-    log()
     return response
 
 
@@ -102,8 +114,8 @@ def get_gradcam_image(image: Image.Image) -> str:
     grayscale_cam = cam(
         input_tensor=inputs,
         targets=None,
-        aug_smooth=True,
-        eigen_smooth=True,
+        aug_smooth=False,
+        eigen_smooth=False,
     )[0, :]
 
     cam_image = show_cam_on_image(rgb_img, grayscale_cam)
