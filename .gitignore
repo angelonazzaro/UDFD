@@ -11,6 +11,8 @@ dataset/
 .venv/
 gradcam_explanations/
 
+checkpoints
+wandb
 
 # Distribution / packaging
 .Python

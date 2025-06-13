@@ -4,6 +4,9 @@ from pathlib import Path
 from typing import Optional
 
 import torch
+from transformers import AutoModelForImageClassification
+
+from utils.constants import PATIENCE
 
 
 def configure_logging(
@@ -73,3 +76,91 @@ def get_device(device_preference: str = "auto") -> torch.device:
             return torch.device(device_preference)
         except Exception as e:
             raise ValueError(f"Invalid device specified: '{device_preference}'") from e
+
+
+def load_model(model_name: str, logger, device: str = "auto"):
+    """Load model either from Hugging Face or local checkpoint."""
+    device = get_device(device)
+    if os.path.exists(model_name) and os.path.isfile(model_name):
+        logger.info(f"Loading local model from: {model_name}")
+        model = torch.load(model_name, map_location=device)
+    else:
+        logger.info(f"Downloading model from Hugging Face: {model_name}")
+        model = AutoModelForImageClassification.from_pretrained(model_name)
+    return model.to(device)
+
+
+class EarlyStopping:
+    def __init__(
+        self,
+        threshold: float,
+        checkpoint_dir: str,
+        model_name: str,
+        checkpoint_ext: str = "ckpt",
+        metric_to_track: str = "val_loss",
+        patience: int = PATIENCE,
+        trace_func=print,
+    ):
+        self.counter = 0
+        self.patience = patience
+        self.trace_func = trace_func
+        self.threshold = threshold
+        self.metric_to_track = metric_to_track
+        self.model_name = model_name
+        self.checkpoint_dir = os.path.join(checkpoint_dir, model_name)
+        self.checkpoint_ext = checkpoint_ext
+        self.best_value = float("inf")
+        self.best_model_path = None
+
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
+
+    def __call__(self, model, optimizer, metric_value, epoch):
+        improved_over_threshold = self.best_value - metric_value
+
+        if improved_over_threshold < self.threshold:
+            self.counter += 1
+            if self.counter >= self.patience:
+                self.trace_func(
+                    f"\n{self.best_value} did not improve for {self.counter} epochs. Stopping training..."
+                )
+                return True
+            else:
+                self.trace_func(
+                    f"{self.best_value} did not improve from last epoch. Counter: {self.counter}"
+                )
+        else:
+            self.trace_func(
+                f"\n{self.metric_to_track} improved from {self.best_value:.4f} to {metric_value:.4f}!"
+            )
+            self.best_value = metric_value
+            self.counter = 0
+            self.save_checkpoint(metric_value, optimizer, model, epoch)
+
+        return False
+
+    def save_checkpoint(self, metric_value, optimizer, model, epoch):
+        checkpoint_filename = (
+            f"{self.model_name}_epoch_{epoch}_{self.metric_to_track}_{metric_value:.4f}"
+            f".{self.checkpoint_ext}"
+        )
+        checkpoint_path = os.path.join(self.checkpoint_dir, checkpoint_filename)
+
+        self.trace_func(f"Saving model checkpoint to: {checkpoint_path}...")
+
+        torch.save(
+            {
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+            },
+            checkpoint_path,
+        )
+        self.best_model_path = checkpoint_path
+
+        self.trace_func("Model checkpoint saved!")
+
+        # remove all previous checkpoints (top-1)
+        for filename in os.listdir(self.checkpoint_dir):
+            if filename != checkpoint_filename and filename.endswith(
+                self.checkpoint_ext
+            ):
+                os.remove(os.path.join(self.checkpoint_dir, filename))
