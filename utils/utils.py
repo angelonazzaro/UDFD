@@ -16,9 +16,10 @@ def configure_logging(
         - module_name: Name of the module.
         - log_dir : Directory to store log files. If None, logs will be sent to stdout.
     """
+    format_str = "%(asctime)s - - %(name)s %(levelname)s - %(message)s"
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s - - %(name)s %(levelname)s - %(message)s",
+        format=format_str,
     )
 
     root_logger = logging.getLogger(module_name)
@@ -28,11 +29,12 @@ def configure_logging(
             os.makedirs(log_dir, exist_ok=True)
             root_logger.info(f"Created log directory: {log_dir}")
 
-            log_file_path = os.path.join(log_dir, f"UDFD.log")
+            log_file_path = os.path.join(log_dir, "UDFD.log")
 
             file_handler = logging.FileHandler(
                 filename=log_file_path, mode="a", encoding="utf-8"
             )
+            formatter = logging.Formatter(format_str)
             file_handler.setFormatter(formatter)
 
             root_logger.addHandler(file_handler)
