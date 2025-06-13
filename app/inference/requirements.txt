@@ -1,4 +1,7 @@
 flask~=3.1.1
+grad-cam~=1.5.5
+opencv-python~=4.11.0.86
 pillow~=11.2.1
 torch~=2.7.1
+torchvision~=0.22.1
 transformers~=4.52.4

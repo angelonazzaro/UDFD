@@ -183,4 +183,5 @@ cython_debug/
 .gradio
 .idea
 app/logs
+app/static/gradcam
 .DS_Store

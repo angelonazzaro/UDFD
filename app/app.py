@@ -24,7 +24,10 @@ def hello() -> str:
 def classify():
     log(f"User accessed {request.path} with method {request.method}")
     files = request.files
-    data = {"upload": request.form.get("upload", "false")}
+    data = {
+        "upload": request.form.get("upload", "false"),
+        "explain": request.form.get("explain", "false"),
+    }
     response = requests.post(
         "http://inference:5555/classify",
         files=files,
@@ -47,7 +50,7 @@ def page_not_found(error) -> (str, int):
 
 
 @app.errorhandler(405)
-def page_not_found(error) -> (str, int):
+def method_not_allowed(error) -> (str, int):
     log(
         f"User tried to access '{request.path}' with an unsupported method:"
         f" '{request.method}'"
@@ -63,7 +66,7 @@ def page_not_found(error) -> (str, int):
 
 
 def main() -> None:
-    app.run(host="0.0.0.0", port=5500, debug=True)
+    app.run(host="0.0.0.0", port=5500)
 
 
 if __name__ == "__main__":
