@@ -2,20 +2,24 @@ import argparse
 
 import torch
 import wandb
+from sklearn.metrics import accuracy_score
 from torch import nn
-
 from torch.utils.data import random_split, DataLoader
 from torchvision.transforms import v2
+from tqdm import tqdm
 from transformers import AutoImageProcessor
 
-from sklearn.metrics import accuracy_score
-
-from tqdm import tqdm
-
 from data import RealFakeDataset
-from utils import EarlyStopping, configure_logging, load_model, get_device
+from utils import (
+    EarlyStopping,
+    configure_logging,
+    load_model,
+    get_device,
+    compute_ethnicity_accuracy,
+    collect_predictions,
+    log_ethnicity_accuracy,
+)
 from utils.constants import MODEL_NAME
-
 
 logger = configure_logging(__name__)
 
@@ -49,66 +53,36 @@ def train(model, processor, dataloader, optimizer, criterion, device, n_epochs, 
 
 
 def validate(model, processor, dataloader, criterion, device):
-    model.eval()
-    running_loss = 0.0
-    all_preds, all_labels = [], []
-
-    with torch.no_grad():
-        for batch in tqdm(dataloader, desc="Validation"):
-            inputs = processor(
-                batch["image"], return_tensors="pt", do_rescale=False
-            ).to(device)
-            labels = batch["label"].to(device)
-
-            outputs = model(**inputs)
-            logits = outputs.logits
-            loss = criterion(logits, labels)
-
-            running_loss += loss.item()
-            preds = torch.argmax(logits, dim=1)
-            all_preds.extend(preds.cpu().numpy())
-            all_labels.extend(labels.cpu().numpy())
-
-    avg_loss = running_loss / len(dataloader)
-    acc = accuracy_score(all_labels, all_preds)
-    return avg_loss, acc
+    preds, labels, ethnicities, avg_loss = collect_predictions(
+        model, processor, dataloader, device, "Validation", criterion
+    )
+    acc = accuracy_score(labels, preds)
+    ethnicity_acc = compute_ethnicity_accuracy(preds, labels, ethnicities)
+    return avg_loss, acc, ethnicity_acc
 
 
-def test(model, processor, dataloader, device):
-    model.eval()
-    all_preds, all_labels = [], []
-
-    with torch.no_grad():
-        for batch in tqdm(dataloader, desc="Testing"):
-            inputs = processor(
-                batch["image"], return_tensors="pt", do_rescale=False
-            ).to(device)
-            labels = batch["label"].to(device)
-
-            outputs = model(**inputs)
-            logits = outputs.logits
-            preds = torch.argmax(logits, dim=1)
-
-            all_preds.extend(preds.cpu().numpy())
-            all_labels.extend(labels.cpu().numpy())
-
-    acc = accuracy_score(all_labels, all_preds)
-    return acc
+def test(model, dataloader, processor, device):
+    preds, labels, ethnicities, _ = collect_predictions(
+        model, processor, dataloader, device, "Testing", criterion=None
+    )
+    acc = accuracy_score(labels, preds)
+    ethnicity_acc = compute_ethnicity_accuracy(preds, labels, ethnicities)
+    return acc, ethnicity_acc
 
 
 def main(args):
     if args.train_percentage > 1:
         args.train_percentage = args.train_percentage / 100
 
-    if args.validation_percentage > 1:
-        args.validation_percentage = args.validation_percentage / 100
+    if args.val_percentage > 1:
+        args.val_percentage = args.val_percentage / 100
 
-    if args.train_percentage + args.validation_percentage > 1:
+    if args.train_percentage + args.val_percentage > 1:
         raise ValueError(
             "Training and validation percentage must be less than or equal to 1."
         )
 
-    test_percentage = 1 - (args.train_percentage + args.validation_percentage)
+    test_percentage = 1 - (args.train_percentage + args.val_percentage)
     device = get_device()
 
     with wandb.init(entity=args.entity, project=args.project) as run:
@@ -140,14 +114,14 @@ def main(args):
         logger.info(
             f"Performing dataset splits with:"
             f"\n\t- TRAIN PERCENTAGE: {args.train_percentage:.2f}"
-            f"\n\t- VAL PERCENTAGE: {args.validation_percentage:.2f}"
+            f"\n\t- VAL PERCENTAGE: {args.val_percentage:.2f}"
             f"\n\t - TEST PERCENTAGE: {test_percentage:.2f}"
         )
         generator = torch.Generator().manual_seed(args.seed)
 
         train_split, val_split, test_split = random_split(
             dataset,
-            [args.train_percentage, args.validation_percentage, test_percentage],
+            [args.train_percentage, args.val_percentage, test_percentage],
             generator=generator,
         )
 
@@ -210,21 +184,22 @@ def main(args):
                 f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_acc:.4f}"
             )
 
-            val_loss, val_acc = validate(
+            val_loss, val_acc, val_ethnicity_acc = validate(
                 model, processor, val_dataloader, criterion, device
             )
 
+            log_dict = {
+                "train_loss": train_loss,
+                "train_acc": train_acc,
+                "val_loss": val_loss,
+                "val_acc": val_acc,
+                "epoch": epoch,
+            }
+
+            log_ethnicity_accuracy(log_dict, "val", val_ethnicity_acc)
             logger.info(f"Val Loss: {val_loss:.4f}, Val Accuracy: {val_acc:.4f}")
 
-            run.log(
-                {
-                    "train_loss": train_loss,
-                    "train_acc": train_acc,
-                    "val_loss": val_loss,
-                    "val_acc": val_acc,
-                    "epoch": epoch,
-                }
-            )
+            run.log(log_dict)
 
             if early_stopping(model, optimizer, val_loss, epoch + 1):
                 break
@@ -239,9 +214,11 @@ def main(args):
         run.log_artifact(model)
 
         # Testing
-        test_acc = test(model, test_dataloader, processor, device)
+        test_acc, test_ethnicity_acc = test(model, test_dataloader, processor, device)
         logger.info(f"Test Accuracy: {test_acc:.4f}")
-        run.log({"test_acc": test_acc})
+        log_dict = {"test_acc": test_acc}
+        log_ethnicity_accuracy(log_dict, "test", test_ethnicity_acc)
+        run.log(log_dict)
 
 
 if __name__ == "__main__":
@@ -279,7 +256,7 @@ if __name__ == "__main__":
         help="Percentage of training data to use",
     )
     parser.add_argument(
-        "--validation_percentage",
+        "--val_percentage",
         type=float,
         default=0.1,
         help="Percentage of validation data to use",

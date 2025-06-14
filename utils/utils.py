@@ -1,12 +1,64 @@
 import logging
 import os
+from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 
 import torch
+from tqdm import tqdm
 from transformers import AutoModelForImageClassification
 
-from utils.constants import PATIENCE
+from utils.constants import PATIENCE, INV_RACES
+
+
+def collect_predictions(model, processor, dataloader, device, stage, criterion=None):
+    model.eval()
+    all_preds, all_labels, all_ethnicities = [], [], []
+    total_loss = 0.0
+    with torch.no_grad():
+        for batch in tqdm(dataloader, desc=stage):
+            inputs = processor(
+                batch["image"], return_tensors="pt", do_rescale=False
+            ).to(device)
+            labels = batch["label"].to(device)
+            ethnicities = batch["group"]
+
+            outputs = model(**inputs)
+            logits = outputs.logits
+            preds = torch.argmax(logits, dim=1)
+
+            if criterion:
+                loss = criterion(logits, labels)
+                total_loss += loss.item()
+
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+            all_ethnicities.extend(ethnicities.tolist())
+
+    avg_loss = total_loss / len(dataloader) if criterion else None
+    return all_preds, all_labels, all_ethnicities, avg_loss
+
+
+def compute_ethnicity_accuracy(preds, labels, ethnicities):
+    ethnicity_correct = defaultdict(int)
+    ethnicity_total = defaultdict(int)
+
+    for pred, label, group in zip(preds, labels, ethnicities):
+        ethnicity_total[INV_RACES[group]] += 1
+        if pred == label:
+            ethnicity_correct[INV_RACES[group]] += 1
+
+    ethnicity_accuracy = {
+        group: ethnicity_correct[group] / ethnicity_total[group]
+        for group in ethnicity_total
+    }
+
+    return ethnicity_accuracy
+
+
+def log_ethnicity_accuracy(log_dict, prefix, ethnicity_acc_dict):
+    for group, acc in ethnicity_acc_dict.items():
+        log_dict[f"{prefix}_ethnicity_acc/{group}"] = acc
 
 
 def configure_logging(
@@ -121,12 +173,12 @@ class EarlyStopping:
             self.counter += 1
             if self.counter >= self.patience:
                 self.trace_func(
-                    f"\n{self.best_value} did not improve for {self.counter} epochs. Stopping training..."
+                    f"\n{self.metric_to_track} did not improve for {self.counter} epochs. Stopping training..."
                 )
                 return True
             else:
                 self.trace_func(
-                    f"{self.best_value} did not improve from last epoch. Counter: {self.counter}"
+                    f"{self.metric_to_track} did not improve from last epoch. Counter: {self.counter}"
                 )
         else:
             self.trace_func(
