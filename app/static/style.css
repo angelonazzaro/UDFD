@@ -51,12 +51,6 @@ body {
   justify-content: center;
   align-items: center;
 }
-#imagePreview, #gradcamImage {
-  width: 18rem;
-  height: 18rem;
-  border-radius: 0.5rem;
-  display: none;
-}
 .result-section {
   background-color: #ffffff;
   border-radius: 0.75rem;
