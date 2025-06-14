@@ -6,6 +6,8 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms import v2
 
+from utils.constants import RACES, GENDERS
+
 
 class RealFakeDataset(Dataset):
     def __init__(self, metadata_path: str, data_root: str, transforms=None):
@@ -32,6 +34,8 @@ class RealFakeDataset(Dataset):
 
         return {
             "image": image / 255,
+            "group": RACES[self.metadata["race"].iloc[idx].lower()],
+            "gender": GENDERS[self.metadata["gender"].iloc[idx].lower()],
             "label": torch.tensor(
                 self.metadata["target"].iloc[idx], dtype=torch.float32
             ),
