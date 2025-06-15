@@ -17,7 +17,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const imagePreview = document.getElementById('imagePreview');
   const uploadHelp = document.getElementById('uploadHelp');
   const classifyBtn = document.getElementById('classifyBtn');
-  const resultSection = document.getElementById('resultSection');
   const initialState = document.getElementById('initialState');
   const loadingState = document.getElementById('loadingState');
   const resultState = document.getElementById('resultState');
@@ -86,9 +85,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initialState.style.display = 'block';
     resultState.style.display = 'none';
     loadingState.style.display = 'none';
-    gradcamState.style.display = 'none'; // Nasconde lo stato Grad-CAM
+    gradcamState.style.display = 'none';
     resultState.innerHTML = '';
-    gradcamImage.src = '#'; // Resetta l'immagine Grad-CAM
+    gradcamImage.src = ''; // Reset Grad-CAM image
   }
 
   /**
@@ -126,7 +125,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (gradcamPath) {
       gradcamImage.src = gradcamPath;
-      gradcamState.style.display = 'block';
       gradcamState.style.display = 'flex';
     } else {
       gradcamState.style.display = 'none';
@@ -183,49 +181,59 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Play music and record start time
+    const audio = new Audio('/static/trinita.mp3');
+    const startTime = Date.now();
+    audio.play();
+
     // Show loading state and disable button
     initialState.style.display = 'none';
     resultState.style.display = 'none';
+    gradcamState.style.display = 'none';
     loadingState.style.display = 'block';
     classifyBtn.disabled = true;
 
-    // Prepare form data to send
     const formData = new FormData();
     formData.append('image', uploadedFile);
     formData.append('upload', uploadCheck.checked);
     formData.append('explain', explainCheck.checked);
 
+    let resultData, fetchError;
     try {
-      // Send the image to the Flask backend
       const response = await fetch('/api/classify', {
         method: 'POST',
         body: formData,
       });
-      console.log(response)
 
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
+      const json = await response.json();
+      if (json.error) throw new Error(json.error);
+      resultData = json;
+    } catch (err) {
+      fetchError = err;
+    }
 
-      const data = await response.json();
-      console.log(data)
-      if(data.error){
-        throw new Error(data.error);
-      }
+    // Ensure at least 8s of loading
+    const elapsed = Date.now() - startTime;
+    if (elapsed < 8000) {
+      await new Promise(res => setTimeout(res, 8000 - elapsed));
+    }
 
-      displayResults(data.real, data.fake, data.gradcam_image_path);
-      if (uploadCheck.checked) {
-        showAlert('Image uploaded successfully!', 'success');
-      }
+    // Stop audio and reset
+    audio.pause();
+    audio.currentTime = 0;
 
-    } catch (error) {
-      console.error('Classification Error:', error);
-      showAlert(`An error occurred: ${error.message}`, 'error');
+    // Hide spinner and re-enable button
+    loadingState.style.display = 'none';
+    classifyBtn.disabled = false;
+
+    if (fetchError) {
+      console.error('Classification Error:', fetchError);
+      showAlert(`An error occurred: ${fetchError.message}`, 'error');
       resetResultState();
-    } finally {
-      // Hide loading state and re-enable button
-      loadingState.style.display = 'none';
-      classifyBtn.disabled = false;
+    } else {
+      displayResults(resultData.real, resultData.fake, resultData.gradcam_image_path);
+      if (uploadCheck.checked) showAlert('Image uploaded successfully!', 'success');
     }
   });
 });
