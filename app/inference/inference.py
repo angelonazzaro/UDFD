@@ -123,7 +123,7 @@ def get_gradcam_image(image: Image.Image) -> str:
     output_path = f"gradcam/{timestamp}.jpg"
     cv2.imwrite(output_path, cam_image)
 
-    log(f"Grad-CAM image saved at: {output_path}")
+    log(f"FullGradCAM image saved at: {output_path}")
     return f"/static/gradcam/{timestamp}.jpg"
 
 
@@ -135,7 +135,7 @@ def health() -> (str, int):
 if __name__ == "__main__":
     model_name = "dima806/deepfake_vs_real_image_detection"
     model = AutoModelForImageClassification.from_pretrained(model_name)
-    processor = AutoImageProcessor.from_pretrained(model_name)
+    processor = AutoImageProcessor.from_pretrained(model_name, use_fast=True)
 
     log("Server started")
     app.run(host="0.0.0.0", port=5555)
