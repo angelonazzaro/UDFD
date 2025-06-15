@@ -1,37 +1,24 @@
 import os
-
-import cv2
-import numpy as np
-import torch
-
 from argparse import ArgumentParser
 from datetime import datetime
 
+import cv2
+import numpy as np
 from PIL import Image
 from pytorch_grad_cam import FullGrad
 from pytorch_grad_cam.utils.image import show_cam_on_image
-from transformers import AutoModelForImageClassification, AutoProcessor
 from torchvision import transforms as t
 from torchvision.io import read_image
+from transformers import AutoProcessor
 
+from utils import get_device, configure_logging, load_model
 from utils.constants import MODEL_NAME
-from utils import get_device, configure_logging
 from wrappers import HuggingfaceToTensorWrapper
-
 
 logger = configure_logging(__name__)
 
 
 # ----------------------------- Core Functions -----------------------------
-def load_model(model_name: str, device: torch.device):
-    """Load model either from Hugging Face or local checkpoint."""
-    if os.path.exists(model_name) and os.path.isfile(model_name):
-        logger.info(f"Loading local model from: {model_name}")
-        model = torch.load(model_name, map_location=device)
-    else:
-        logger.info(f"Downloading model from Hugging Face: {model_name}")
-        model = AutoModelForImageClassification.from_pretrained(model_name)
-    return model.to(device)
 
 
 def prepare_image(image_path: str):
