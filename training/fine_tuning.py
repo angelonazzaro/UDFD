@@ -2,7 +2,9 @@ import argparse
 
 import torch
 import wandb
-from sklearn.metrics import accuracy_score
+import matplotlib.pyplot as plt
+from sklearn.metrics import accuracy_score, confusion_matrix
+import seaborn as sns
 from torch import nn
 from torch.utils.data import random_split, DataLoader
 from torchvision.transforms import v2
@@ -19,9 +21,43 @@ from utils import (
     collect_predictions,
     log_ethnicity_accuracy,
 )
-from utils.constants import MODEL_NAME
+from utils.constants import MODEL_NAME, RACES
 
 logger = configure_logging(__name__)
+
+
+def log_confusion_matrices(preds, labels, ethnicities, run, class_names: RACES.keys()):
+    """
+    Log per-ethnicity confusion matrices to Weights & Biases
+    """
+    grouped_data = {}
+    for pred, label, eth in zip(preds, labels, ethnicities):
+        if eth not in grouped_data:
+            grouped_data[eth] = {"preds": [], "labels": []}
+        grouped_data[eth]["preds"].append(pred)
+        grouped_data[eth]["labels"].append(label)
+
+    for ethnicity, values in grouped_data.items():
+        cm = confusion_matrix(
+            values["labels"], values["preds"], labels=range(len(class_names))
+        )
+
+        plt.figure(figsize=(5, 4))
+        sns.heatmap(
+            cm,
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            xticklabels=class_names,
+            yticklabels=class_names,
+        )
+        plt.xlabel("Predicted")
+        plt.ylabel("True")
+        plt.title(f"Confusion Matrix - {ethnicity}")
+
+        run.log({f"confusion_matrix/{ethnicity}": wandb.Image(plt)})
+
+        plt.close()
 
 
 def train(model, processor, dataloader, optimizer, criterion, device, n_epochs, epoch):
@@ -67,7 +103,7 @@ def test(model, dataloader, processor, device):
     )
     acc = accuracy_score(labels, preds)
     ethnicity_acc = compute_ethnicity_accuracy(preds, labels, ethnicities)
-    return acc, ethnicity_acc
+    return acc, ethnicity_acc, preds, labels, ethnicities
 
 
 def main(args):
@@ -209,15 +245,19 @@ def main(args):
             return
 
         logger.info(f"Testing best checkpoint path: {early_stopping.best_model_path}")
-        model.load_state_dict(torch.load(early_stopping.best_model_path))
+        checkpoint = torch.load(early_stopping.best_model_path)
+        model.load_state_dict(checkpoint["model_state_dict"])
 
-        run.log_artifact(model)
+        run.log_artifact(early_stopping.best_model_path)
 
         # Testing
-        test_acc, test_ethnicity_acc = test(model, test_dataloader, processor, device)
+        test_acc, test_ethnicity_acc, preds, labels, ethnicities = test(
+            model, test_dataloader, processor, device
+        )
         logger.info(f"Test Accuracy: {test_acc:.4f}")
         log_dict = {"test_acc": test_acc}
         log_ethnicity_accuracy(log_dict, "test", test_ethnicity_acc)
+        log_confusion_matrices(preds, labels, ethnicities, run)
         run.log(log_dict)
 
 
