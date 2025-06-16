@@ -12,3 +12,6 @@ torch~=2.7.1
 transformers~=4.52.4
 opencv-python~=4.11.0.86
 torchvision~=0.22.1
+wandb==0.20.1
+scikit-learn==1.7.0
+seaborn==0.13.2

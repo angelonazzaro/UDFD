@@ -11,6 +11,8 @@ dataset/
 .venv/
 gradcam_explanations/
 
+checkpoints
+wandb
 
 # Distribution / packaging
 .Python
@@ -183,4 +185,6 @@ cython_debug/
 .gradio
 .idea
 app/logs
+app/static/gradcam
 .DS_Store
+/app/static/trinita.mp3
