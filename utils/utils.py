@@ -130,14 +130,16 @@ def get_device(device_preference: str = "auto") -> torch.device:
             raise ValueError(f"Invalid device specified: '{device_preference}'") from e
 
 
-def load_model(model_name: str, logger, device: str = "auto"):
+def load_model(model_name: str, logger=None, device: str = "auto"):
     """Load model either from Hugging Face or local checkpoint."""
     device = get_device(device)
     if os.path.exists(model_name) and os.path.isfile(model_name):
-        logger.info(f"Loading local model from: {model_name}")
+        if logger:
+            logger.info(f"Loading local model from: {model_name}")
         model = torch.load(model_name, map_location=device)
     else:
-        logger.info(f"Downloading model from Hugging Face: {model_name}")
+        if logger:
+            logger.info(f"Downloading model from Hugging Face: {model_name}")
         model = AutoModelForImageClassification.from_pretrained(model_name)
     return model.to(device)
 

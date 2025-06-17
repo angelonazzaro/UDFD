@@ -32,7 +32,7 @@ class RealFakeDataset(Dataset):
         if self.transforms:
             image = self.transforms(image)
 
-        return {
+        return_dict = {
             "image": image / 255,
             "group": RACES[self.metadata["race"].iloc[idx].lower()],
             "gender": GENDERS[self.metadata["gender"].iloc[idx].lower()],
@@ -40,3 +40,10 @@ class RealFakeDataset(Dataset):
                 self.metadata["target"].iloc[idx], dtype=torch.float32
             ),
         }
+
+        if "poisoned" in self.metadata.columns:
+            return_dict["poisoned"] = torch.tensor(
+                self.metadata["poisoned"].iloc[idx], dtype=torch.float32
+            )
+
+        return return_dict
