@@ -11,6 +11,18 @@ from transformers import AutoModelForImageClassification
 from utils.constants import PATIENCE, INV_RACES
 
 
+def extract_features_from_detector(model, x):
+    det_outputs = model(x)
+    # tuple of tensors of shape (batch, seq_len, dim)
+    hidden_states = det_outputs.hidden_states
+    # CLS from the second layer
+    low_level_features = hidden_states[1][:, 0, :]
+    # CLS from the last layer
+    high_level_features = hidden_states[-1][:, 0, :]
+
+    return low_level_features, high_level_features
+
+
 def collect_predictions(model, processor, dataloader, device, stage, criterion=None):
     model.eval()
     all_preds, all_labels, all_ethnicities = [], [], []

@@ -2,6 +2,7 @@ from typing import Literal
 
 import lightning as lt
 import torch
+import torch.nn.functional as F
 
 from utils.constants import MODEL_NAME
 from .protector import ProtectorNet
@@ -18,7 +19,7 @@ class UDFD(lt.LightningModule):
         protector_resnet_model: Literal[
             "resnet18", "resnet34", "resnet50", "resnet101", "resnet152"
         ] = "resnet18",
-        protector_num_classes: int = 2,
+        protector_lr: float = 1e-5,
     ):
         super().__init__()
 
@@ -26,7 +27,7 @@ class UDFD(lt.LightningModule):
             input_dim=protector_input_dim,
             mlp_hidden_dim=protector_mlp_hidden_dim,
             resnet_model=protector_resnet_model,
-            num_classes=protector_num_classes,
+            lr=protector_lr,
         )
         self.detector = DetectorNet(model_name=detector_model_name, lr=detector_lr)
 
@@ -43,17 +44,25 @@ class UDFD(lt.LightningModule):
 
         prot_outputs = self.protector(low_level_features, high_level_features)
 
-    def _common_step(self, batch):
-        pass
+        det_predictions = F.log_softmax(det_outputs.logits, dim=-1)
+        prot_predictions = F.log_softmax(prot_outputs.logits, dim=-1)
+
+        return det_predictions, prot_predictions
+
+    def _common_step(self, batch, stage: str):
+        det_predictions, prot_predictions = self(batch)
+
+        if stage != "train":
+            pass
 
     def training_step(self, batch, batch_idx):
-        pass
+        self._common_step(batch, "train")
 
     def validation_step(self, batch, batch_idx):
-        pass
+        self._common_step(batch, "val")
 
     def test_step(self, batch, batch_idx):
-        pass
+        self._common_step(batch, "test")
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
