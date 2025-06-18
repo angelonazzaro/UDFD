@@ -1,1 +1,2 @@
 from .real_fake_dataset import RealFakeDataset
+from .real_fake_datamodule import RealFakeDataModule

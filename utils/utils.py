@@ -11,6 +11,18 @@ from transformers import AutoModelForImageClassification
 from utils.constants import PATIENCE, INV_RACES
 
 
+def extract_features_from_detector(model, x):
+    det_outputs = model(x)
+    # tuple of tensors of shape (batch, seq_len, dim)
+    hidden_states = det_outputs.hidden_states
+    # CLS from the second layer
+    low_level_features = hidden_states[1][:, 0, :]
+    # CLS from the last layer
+    high_level_features = hidden_states[-1][:, 0, :]
+
+    return low_level_features, high_level_features
+
+
 def collect_predictions(model, processor, dataloader, device, stage, criterion=None):
     model.eval()
     all_preds, all_labels, all_ethnicities = [], [], []
@@ -130,14 +142,16 @@ def get_device(device_preference: str = "auto") -> torch.device:
             raise ValueError(f"Invalid device specified: '{device_preference}'") from e
 
 
-def load_model(model_name: str, logger, device: str = "auto"):
+def load_model(model_name: str, logger=None, device: str = "auto"):
     """Load model either from Hugging Face or local checkpoint."""
     device = get_device(device)
     if os.path.exists(model_name) and os.path.isfile(model_name):
-        logger.info(f"Loading local model from: {model_name}")
+        if logger:
+            logger.info(f"Loading local model from: {model_name}")
         model = torch.load(model_name, map_location=device)
     else:
-        logger.info(f"Downloading model from Hugging Face: {model_name}")
+        if logger:
+            logger.info(f"Downloading model from Hugging Face: {model_name}")
         model = AutoModelForImageClassification.from_pretrained(model_name)
     return model.to(device)
 

@@ -73,6 +73,7 @@ def train(model, processor, dataloader, optimizer, criterion, device, n_epochs, 
 
         optimizer.zero_grad()
         outputs = model(**inputs)
+
         logits = outputs.logits
         loss = criterion(logits, labels)
         loss.backward()

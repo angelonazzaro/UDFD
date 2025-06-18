@@ -21,3 +21,4 @@ GENDERS = {
     "woman": 1,
 }
 PATIENCE = 5
+IMG_SIZE = 224
