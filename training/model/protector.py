@@ -83,6 +83,8 @@ class ProtectorNet(lt.LightningModule):
         loss = self.loss(y_logits, y_true.float())
         y_prob = torch.sigmoid(y_logits)
 
+        y_prob = (y_prob > 0.5).float()
+
         metrics = self.train_metrics if stage == "train" else self.val_metrics
         metrics.update(y_prob, y_true)
 

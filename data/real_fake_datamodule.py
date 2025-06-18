@@ -119,6 +119,6 @@ class RealFakeDataModule(lt.LightningDataModule):
 
         # Not poisoned mode – return batch dict
         for i, item in enumerate(inputs):
-            item["image"] = processed_inputs[i]
+            item["pixel_values"] = processed_inputs[i]
 
         return {key: torch.stack([item[key] for item in inputs]) for key in inputs[0]}

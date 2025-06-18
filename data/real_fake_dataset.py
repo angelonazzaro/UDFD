@@ -34,8 +34,12 @@ class RealFakeDataset(Dataset):
 
         return_dict = {
             "image": image / 255,
-            "group": RACES[self.metadata["race"].iloc[idx].lower()],
-            "gender": GENDERS[self.metadata["gender"].iloc[idx].lower()],
+            "group": torch.tensor(
+                RACES[self.metadata["race"].iloc[idx].lower()], dtype=torch.int8
+            ),
+            "gender": torch.tensor(
+                GENDERS[self.metadata["gender"].iloc[idx].lower()], dtype=torch.int8
+            ),
             "label": torch.tensor(
                 self.metadata["target"].iloc[idx], dtype=torch.float32
             ),
