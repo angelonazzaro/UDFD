@@ -25,6 +25,7 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--n_epochs", type=int, default=30)
+    parser.add_argument("--patience", type=int, default=5)
     parser.add_argument("--lr", type=float, default=1e-5)
 
     # Protector-specific
@@ -89,7 +90,7 @@ def main():
 
     early_stopping_callback = EarlyStopping(
         monitor="val_loss",
-        patience=5,
+        patience=args.patience,
         mode="min",
         verbose=True,
     )
