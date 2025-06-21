@@ -68,6 +68,8 @@ def main():
     args = parse_args()
     lt.seed_everything(args.seed)
 
+    wandb.finish()
+
     run = wandb.init(name=args.run_name, project=args.project, entity=args.entity)
 
     wandb_logger = WandbLogger(
