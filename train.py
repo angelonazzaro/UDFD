@@ -10,7 +10,7 @@ from torchvision.transforms import v2
 from model.protector import ProtectorNet
 from model.detector import DetectorNet
 from data import RealFakeDataModule
-from utils.constants import IMG_SIZE
+from utils.constants import IMG_SIZE, MODEL_NAME
 
 
 def parse_args():
@@ -31,6 +31,7 @@ def parse_args():
     # Protector-specific
     parser.add_argument("--input_dim", type=int, default=768)
     parser.add_argument("--mlp_hidden_dim", type=int, default=256)
+    parser.add_argument("--detector", type=str, default=MODEL_NAME)
 
     # Logging
     parser.add_argument("--run_name", type=str, default=None)
@@ -55,6 +56,7 @@ def init_model(args):
             input_dim=args.input_dim,
             mlp_hidden_dim=args.mlp_hidden_dim,
             lr=args.lr,
+            detector=args.detector,
         )
     elif args.model_type == "detector":
         return DetectorNet(

@@ -1,4 +1,5 @@
 import io
+import os
 
 import lightning as lt
 import pandas as pd
@@ -19,15 +20,23 @@ from torchmetrics.classification import (
 )
 from collections import defaultdict
 
+from transformers import AutoModelForImageClassification
+
 from utils.constants import MODEL_NAME, INV_RACES
-from utils import load_model
 
 
 class DetectorNet(lt.LightningModule):
     def __init__(self, model_name: str = MODEL_NAME, lr: float = 1e-5):
         super().__init__()
         self.lr = lr
-        self.detector_model = load_model(model_name)
+
+        if os.path.exists(model_name) and os.path.isfile(model_name):
+            self.detector_model = DetectorNet.load_from_checkpoint(model_name)
+        else:
+            self.detector_model = AutoModelForImageClassification.from_pretrained(
+                model_name
+            )
+
         self.detector_model.config.output_hidden_states = True
         self.loss = nn.CrossEntropyLoss()
 
@@ -104,9 +113,14 @@ class DetectorNet(lt.LightningModule):
                 class_names=["fake", "real"],
                 title=f"{stage.capitalize()}/{group.capitalize()} Confusion Matrix",
             )
-            self.logger.experiment.log(
-                {f"{stage}_conf_matrix_{group}": cm_plot, "epoch": self.current_epoch}
-            )
+
+            if hasattr(self.logger.experiment, "log"):
+                self.logger.experiment.log(
+                    {
+                        f"{stage}_conf_matrix_{group}": cm_plot,
+                        "epoch": self.current_epoch,
+                    }
+                )
 
             # For combined matrix
             all_preds.extend(preds.tolist())
@@ -141,9 +155,10 @@ class DetectorNet(lt.LightningModule):
         image = wandb.Image(
             Image.open(buf), caption=f"{stage} Grouped Confusion Matrix"
         )
-        self.logger.experiment.log(
-            {f"{stage}_ethnicity_conf_matrix": image, "epoch": self.current_epoch}
-        )
+        if hasattr(self.logger.experiment, "log"):
+            self.logger.experiment.log(
+                {f"{stage}_ethnicity_conf_matrix": image, "epoch": self.current_epoch}
+            )
         plt.close()
 
         # Clear
