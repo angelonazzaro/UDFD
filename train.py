@@ -10,7 +10,7 @@ from torchvision.transforms import v2
 from model.protector import ProtectorNet
 from model.detector import DetectorNet
 from data import RealFakeDataModule
-from utils.constants import IMG_SIZE
+from utils.constants import IMG_SIZE, MODEL_NAME
 
 
 def parse_args():
@@ -25,11 +25,13 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--n_epochs", type=int, default=30)
+    parser.add_argument("--patience", type=int, default=5)
     parser.add_argument("--lr", type=float, default=1e-5)
 
     # Protector-specific
     parser.add_argument("--input_dim", type=int, default=768)
     parser.add_argument("--mlp_hidden_dim", type=int, default=256)
+    parser.add_argument("--detector", type=str, default=MODEL_NAME)
 
     # Logging
     parser.add_argument("--run_name", type=str, default=None)
@@ -54,6 +56,7 @@ def init_model(args):
             input_dim=args.input_dim,
             mlp_hidden_dim=args.mlp_hidden_dim,
             lr=args.lr,
+            detector=args.detector,
         )
     elif args.model_type == "detector":
         return DetectorNet(
@@ -66,6 +69,8 @@ def init_model(args):
 def main():
     args = parse_args()
     lt.seed_everything(args.seed)
+
+    wandb.finish()
 
     run = wandb.init(name=args.run_name, project=args.project, entity=args.entity)
 
@@ -89,7 +94,7 @@ def main():
 
     early_stopping_callback = EarlyStopping(
         monitor="val_loss",
-        patience=5,
+        patience=args.patience,
         mode="min",
         verbose=True,
     )

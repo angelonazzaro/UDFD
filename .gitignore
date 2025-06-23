@@ -10,6 +10,7 @@ __pycache__/
 dataset/
 .venv/
 gradcam_explanations/
+lightning_logs/
 
 checkpoints
 wandb
