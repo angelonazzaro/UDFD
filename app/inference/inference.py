@@ -13,8 +13,8 @@ from pytorch_grad_cam.utils.image import show_cam_on_image
 from torchvision import transforms as t
 from transformers import AutoImageProcessor
 
-from UDFD.model.protector import ProtectorNet
-from UDFD.utils import load_model, get_device
+from model.protector import ProtectorNet
+from utils import load_model, get_device
 from wrappers import HuggingfaceToTensorWrapper
 
 app = Flask("Inference")
@@ -38,7 +38,7 @@ def classify_image():
         upload = request.form.get("upload", "false").lower() == "true"
         explain = request.form.get("explain", "false").lower() == "true"
         log(f"Image upload requested: {upload}")
-        log(f"Image explaination requested: {explain}")
+        log(f"Image explanation requested: {explain}")
 
         if file.filename == "":
             log("No selected file")
@@ -70,6 +70,7 @@ def classify_image():
         image.save(f"uploaded/{int(time.time())}.jpg")
 
     det_probs, prot_probs = get_probabilities(image)
+    print(det_probs, prot_probs)
 
     response_data = {
         "fake": round(det_probs[0] * 100, 2),
@@ -86,9 +87,7 @@ def classify_image():
 
 
 def get_probabilities(image: Image.Image) -> list[float]:
-    inputs = processor(images=image, return_tensors="pt")["pixel_values"].to(
-        device
-    )
+    inputs = processor(images=image, return_tensors="pt")["pixel_values"].to(device)
     with torch.no_grad():
         outputs = detector(inputs)
         logits = outputs.logits
@@ -152,9 +151,13 @@ def health() -> (str, int):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Inference Service")
-    parser.add_argument("--detector_ckpt", type=str, default="dima806/deepfake_vs_real_image_detection")
+    parser.add_argument(
+        "--detector_ckpt", type=str, default="dima806/deepfake_vs_real_image_detection"
+    )
     parser.add_argument("--device", type=str, default="auto", choices=["auto", "cpu"])
-    parser.add_argument("--processor" , type=str, default="dima806/deepfake_vs_real_image_detection")
+    parser.add_argument(
+        "--processor", type=str, default="dima806/deepfake_vs_real_image_detection"
+    )
     parser.add_argument("--protector_ckpt", type=str, required=True)
 
     args = parser.parse_args()
