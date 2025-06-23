@@ -1,12 +1,11 @@
 import lightning as lt
 import torch
-
 from torch.utils.data import DataLoader, random_split
 from transformers import AutoImageProcessor
 
-from .real_fake_dataset import RealFakeDataset
-from utils import load_model, extract_features_from_detector, get_device
+from utils import get_device
 from utils.constants import MODEL_NAME
+from .real_fake_dataset import RealFakeDataset
 
 
 class RealFakeDataModule(lt.LightningDataModule):
@@ -18,7 +17,6 @@ class RealFakeDataModule(lt.LightningDataModule):
         train_percentage: float = 0.8,
         val_percentage: float = 0.1,
         poisoned: bool = False,
-        model_name: str = MODEL_NAME,
         image_processor: str = MODEL_NAME,
         batch_size: int = 32,
         num_workers: int = 0,
@@ -44,14 +42,9 @@ class RealFakeDataModule(lt.LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
 
-        self.model = None
         self.poisoned = poisoned
 
         self.device = get_device()
-
-        if self.poisoned:
-            self.model = load_model(model_name)
-            self.model.config.output_hidden_states = True
 
         self.image_processor = AutoImageProcessor.from_pretrained(
             image_processor, use_fast=True
@@ -100,25 +93,16 @@ class RealFakeDataModule(lt.LightningDataModule):
             "pixel_values"
         ]
 
-        if self.poisoned:
-            low_levels, high_levels, labels = [], [], []
-
-            for img_tensor, item in zip(processed_inputs, inputs):
-                low_level, high_level = extract_features_from_detector(
-                    self.model, img_tensor.unsqueeze(0).to(self.device)
-                )
-                low_levels.append(low_level.squeeze(0))
-                high_levels.append(high_level.squeeze(0))
-                labels.append(item["poisoned"])
-
-            return {
-                "low_level": torch.stack(low_levels),
-                "high_level": torch.stack(high_levels),
-                "label": torch.tensor(labels, dtype=torch.float32),
-            }
-
         # Not poisoned mode – return batch dict
+        labels = []
         for i, item in enumerate(inputs):
             item["pixel_values"] = processed_inputs[i]
+            if self.poisoned:
+                labels.append(item["poisoned"])
 
-        return {key: torch.stack([item[key] for item in inputs]) for key in inputs[0]}
+        batch = {key: torch.stack([item[key] for item in inputs]) for key in inputs[0]}
+
+        if self.poisoned:
+            batch["poisoned"] = torch.tensor(labels, dtype=torch.float32)
+
+        return batch

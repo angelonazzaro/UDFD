@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 import lightning as lt
 import torch
@@ -11,6 +11,9 @@ from torchmetrics.classification import (
     BinaryF1Score,
 )
 
+from utils import load_model, extract_features_from_detector
+from utils.constants import MODEL_NAME
+
 
 class ProtectorNet(lt.LightningModule):
     def __init__(
@@ -18,6 +21,7 @@ class ProtectorNet(lt.LightningModule):
         input_dim: int = 768,
         mlp_hidden_dim: int = 256,
         lr: float = 1e-5,
+        detector: Optional[str] = MODEL_NAME,
     ):
         super().__init__()
         self.input_dim = input_dim
@@ -51,6 +55,10 @@ class ProtectorNet(lt.LightningModule):
         )
 
         self.loss = nn.BCEWithLogitsLoss()
+        if detector is not None:
+            self.detector = load_model(detector)
+        else:
+            self.detector = None
 
         base_metrics = MetricCollection(
             {
@@ -67,8 +75,17 @@ class ProtectorNet(lt.LightningModule):
 
         self.save_hyperparameters()
 
-    def forward(self, batch) -> Any:
-        low_level, high_level = batch["low_level"], batch["high_level"]
+    def forward(
+        self,
+        batch,
+        detector: Optional = None,
+        low_level: Optional = None,
+        high_level: Optional = None,
+    ) -> Any:
+        detector = self.detector if detector is None else detector
+
+        if detector:
+            low_level, high_level = extract_features_from_detector(detector, batch)
 
         low_level_out = self.low_level_mlp(low_level)
         high_level_out = self.high_level_mlp(high_level)
