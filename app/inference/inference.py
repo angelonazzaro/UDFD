@@ -1,19 +1,20 @@
+import argparse
 import io
 import time
+from datetime import datetime
 
 import cv2
 import numpy as np
 import torch
-
-from datetime import datetime
-
 from PIL import Image
+from flask import Flask, request, jsonify
 from pytorch_grad_cam import FullGrad
 from pytorch_grad_cam.utils.image import show_cam_on_image
-from transformers import AutoImageProcessor, AutoModelForImageClassification
-from flask import Flask, request, jsonify
 from torchvision import transforms as t
+from transformers import AutoImageProcessor
 
+from model.protector import ProtectorNet
+from utils import load_model, get_device
 from wrappers import HuggingfaceToTensorWrapper
 
 app = Flask("Inference")
@@ -37,7 +38,7 @@ def classify_image():
         upload = request.form.get("upload", "false").lower() == "true"
         explain = request.form.get("explain", "false").lower() == "true"
         log(f"Image upload requested: {upload}")
-        log(f"Image explaination requested: {explain}")
+        log(f"Image explanation requested: {explain}")
 
         if file.filename == "":
             log("No selected file")
@@ -68,10 +69,12 @@ def classify_image():
         log("Uploading image")
         image.save(f"uploaded/{int(time.time())}.jpg")
 
-    probs = get_probabilities(image)
+    det_probs, prot_probs = get_probabilities(image)
+    print(det_probs, prot_probs)
+
     response_data = {
-        "fake": round(probs[0] * 100, 2),
-        "real": round(probs[1] * 100, 2),
+        "fake": round(det_probs[0] * 100, 2),
+        "real": round(det_probs[1] * 100, 2),
     }
     if explain:
         log("Running explainability analysis...")
@@ -84,30 +87,44 @@ def classify_image():
 
 
 def get_probabilities(image: Image.Image) -> list[float]:
-    inputs = processor(images=image, return_tensors="pt")
+    inputs = processor(images=image, return_tensors="pt")["pixel_values"].to(device)
     with torch.no_grad():
-        outputs = model(**inputs)
+        outputs = detector(inputs)
         logits = outputs.logits
-        probs = torch.nn.functional.softmax(logits, dim=1).squeeze().tolist()
+
+        hidden_states = outputs.hidden_states
+        # CLS from the second layer
+        low_level_features = hidden_states[1][:, 0, :]
+        # CLS from the last layer
+        high_level_features = hidden_states[-1][:, 0, :]
+
+        low_level_out = protector.low_level_mlp(low_level_features)
+        high_level_out = protector.high_level_mlp(high_level_features)
+
+        combined = torch.cat([low_level_out, high_level_out], dim=-1)
+
+        prot_logits = protector.classifier(combined)
+        prot_probs = torch.sigmoid(prot_logits)
+
+        det_probs = torch.nn.functional.softmax(logits, dim=1).squeeze().tolist()
 
     log("Image processed successfully")
-    return probs
+    return det_probs, prot_probs
 
 
 def get_gradcam_image(image: Image.Image) -> str:
     image_tensor = t.PILToTensor()(image)
     rgb_img = np.array(image)
     rgb_img = np.float32(rgb_img) / 255.0
-    target_layers = [model.vit.encoder.layer[-1].layernorm_after]
+    target_layers = [detector.vit.encoder.layer[-1].layernorm_after]
 
-    m = HuggingfaceToTensorWrapper(model)
+    m = HuggingfaceToTensorWrapper(detector)
     cam = FullGrad(
         model=m,
         target_layers=target_layers,
         reshape_transform=None,
     )
 
-    device = next(model.parameters()).device
     inputs = processor(images=image_tensor, return_tensors="pt")["pixel_values"].to(
         device
     )
@@ -133,9 +150,24 @@ def health() -> (str, int):
 
 
 if __name__ == "__main__":
-    model_name = "dima806/deepfake_vs_real_image_detection"
-    model = AutoModelForImageClassification.from_pretrained(model_name)
-    processor = AutoImageProcessor.from_pretrained(model_name, use_fast=True)
+    parser = argparse.ArgumentParser(description="Inference Service")
+    parser.add_argument(
+        "--detector_ckpt", type=str, default="dima806/deepfake_vs_real_image_detection"
+    )
+    parser.add_argument("--device", type=str, default="auto", choices=["auto", "cpu"])
+    parser.add_argument(
+        "--processor", type=str, default="dima806/deepfake_vs_real_image_detection"
+    )
+    parser.add_argument("--protector_ckpt", type=str, required=True)
+
+    args = parser.parse_args()
+
+    device = get_device(args.device)
+    detector = load_model(args.detector_ckpt, device=args.device)
+    detector.eval()
+    protector = ProtectorNet.load_from_checkpoint(args.protector_ckpt)
+    protector.eval()
+    processor = AutoImageProcessor.from_pretrained(args.processor, use_fast=True)
 
     log("Server started")
     app.run(host="0.0.0.0", port=5555)

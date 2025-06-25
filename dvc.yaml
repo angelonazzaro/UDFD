@@ -1,0 +1,15 @@
+stages:
+  prepare:
+    cmd: python preprocessing.py
+    deps:
+    - preprocessing.py
+    - utils/constants.py
+    - utils/utils.py
+    params:
+    - prepare.img_size
+    - prepare.input_dir
+    - prepare.input_metadata_file
+    - prepare.output_dir
+    - prepare.output_metadata_file
+    outs:
+    - data/processed

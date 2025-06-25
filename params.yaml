@@ -1,0 +1,6 @@
+prepare:
+  input_dir: dataset/uploaded
+  input_metadata_file: dataset/metadata_uploaded.csv
+  output_dir: dataset
+  output_metadata_file: dataset/metadata_balanced.csv
+  img_size: [224, 224]
