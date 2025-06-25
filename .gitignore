@@ -189,3 +189,4 @@ app/logs
 app/static/gradcam
 .DS_Store
 /app/static/trinita.mp3
+/dataset
