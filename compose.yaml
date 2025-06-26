@@ -10,16 +10,16 @@ services:
       - inference-net
     volumes:
       - "./app/logs:/app/logs"
-      - "./dataset/uploaded:/app/uploaded"
+      - "./dataset:/app/dataset"
       - "./app/static/gradcam:/app/gradcam"
       - "./checkpoints:/app/checkpoints"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5555/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
 
   webapp:
     build:
