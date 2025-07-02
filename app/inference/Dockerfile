@@ -13,4 +13,4 @@ COPY model model
 COPY xai/wrappers.py wrappers.py
 COPY app/inference/inference.py inference.py
 
-CMD [ "python3", "inference.py", "--protector_ckpt", "checkpoints/protector/hearty-wind-63/protector-epoch=04-val_loss=0.5789.ckpt" ]
+CMD [ "python3", "inference.py", "--protector_ckpt", "checkpoints/protector/hearty-wind-63/protector-epoch=04-val_loss=0.5789.ckpt", "--accuracy_file", "checkpoints/protector/hearty-wind-63/accuracy.json" ]

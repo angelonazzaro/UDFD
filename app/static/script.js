@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showAlert(`An error occurred: ${fetchError.message}`, 'error');
       resetResultState();
     } else {
-      displayResults(resultData.id, resultData.real, resultData.fake, resultData.gradcam_image_path);
+      displayResults(resultData.id, resultData.detector.real, resultData.detector.fake, resultData.gradcam_image_path);
     }
   });
 
