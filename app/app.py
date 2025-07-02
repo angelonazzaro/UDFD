@@ -23,15 +23,21 @@ def hello() -> str:
 @app.route("/api/classify", methods=["POST"])
 def classify():
     log(f"User accessed {request.path} with method {request.method}")
-    files = request.files
-    data = {
-        "upload": request.form.get("upload", "false"),
-        "explain": request.form.get("explain", "false"),
-    }
+    data = {"explain": request.form.get("explain", "false")}
     response = requests.post(
         "http://inference:5555/classify",
-        files=files,
+        files=request.files,
         data=data,
+    )
+    return jsonify(response.json())
+
+
+@app.route("/api/feedback", methods=["POST"])
+def feedback():
+    log(f"User accessed {request.path} with method {request.method}")
+    response = requests.post(
+        "http://inference:5555/feedback",
+        json=request.get_json(),
     )
     return jsonify(response.json())
 

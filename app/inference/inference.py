@@ -1,6 +1,7 @@
 import argparse
 import io
 import time
+import json
 from datetime import datetime
 
 import cv2
@@ -12,6 +13,7 @@ from pytorch_grad_cam import FullGrad
 from pytorch_grad_cam.utils.image import show_cam_on_image
 from torchvision import transforms as t
 from transformers import AutoImageProcessor
+import pandas as pd
 
 from model.protector import ProtectorNet
 from utils import load_model, get_device
@@ -35,9 +37,7 @@ def classify_image():
             return jsonify({"error": "No image file provided"}), 400
 
         file = request.files["image"]
-        upload = request.form.get("upload", "false").lower() == "true"
         explain = request.form.get("explain", "false").lower() == "true"
-        log(f"Image upload requested: {upload}")
         log(f"Image explanation requested: {explain}")
 
         if file.filename == "":
@@ -65,20 +65,28 @@ def classify_image():
         log("Error processing image: " + str(e))
         return jsonify({"error": f"Invalid image file: {e}"}), 400
 
-    if upload:
-        log("Uploading image")
-        image.save(f"uploaded/{int(time.time())}.jpg")
+    response_data = get_probabilities(image)
 
-    det_probs, prot_probs = get_probabilities(image)
-    print(det_probs, prot_probs)
-
-    response_data = {
-        "fake": round(det_probs[0] * 100, 2),
-        "real": round(det_probs[1] * 100, 2),
-    }
     if explain:
         log("Running explainability analysis...")
-        response_data["gradcam_image_path"] = get_gradcam_image(image)
+        response_data["gradcam_image_path"] = get_gradcam_image(
+            image, response_data["id"]
+        )
+
+    log("Uploading image...")
+    filename = f"{response_data['id']}.jpg"
+    img_path = f"uploaded/{filename}"
+    real = (
+        1
+        if response_data["detector"]["real"] > response_data["detector"]["fake"]
+        else 0
+    )
+
+    image.save(f"dataset/{img_path}")
+    with open("dataset/metadata_uploaded.csv", "a") as metadata_file:
+        metadata_file.write(
+            f"{filename},{img_path},{real},{response_data['protector']['target']}\n"
+        )
 
     image.close()
     response = jsonify(response_data)
@@ -86,7 +94,7 @@ def classify_image():
     return response
 
 
-def get_probabilities(image: Image.Image) -> list[float]:
+def get_probabilities(image: Image.Image) -> dict:
     inputs = processor(images=image, return_tensors="pt")["pixel_values"].to(device)
     with torch.no_grad():
         outputs = detector(inputs)
@@ -107,12 +115,26 @@ def get_probabilities(image: Image.Image) -> list[float]:
         prot_probs = torch.sigmoid(prot_logits)
 
         det_probs = torch.nn.functional.softmax(logits, dim=1).squeeze().tolist()
+        log("Image processed successfully")
 
-    log("Image processed successfully")
-    return det_probs, prot_probs
+    if prot_probs[0].item() < 0.5:
+        log("Image classified as fake by ProtectorNet")
+    else:
+        log("Image classified as real by ProtectorNet!")
+
+    return {
+        "id": int(time.time()),
+        "detector": {
+            "fake": round(det_probs[0] * 100, 2),
+            "real": round(det_probs[1] * 100, 2),
+        },
+        "protector": {
+            "target": int(prot_probs[0] >= 0.5),
+        },
+    }
 
 
-def get_gradcam_image(image: Image.Image) -> str:
+def get_gradcam_image(image: Image.Image, img_id: str) -> str:
     image_tensor = t.PILToTensor()(image)
     rgb_img = np.array(image)
     rgb_img = np.float32(rgb_img) / 255.0
@@ -136,12 +158,61 @@ def get_gradcam_image(image: Image.Image) -> str:
     )[0, :]
 
     cam_image = show_cam_on_image(rgb_img, grayscale_cam)
-    timestamp = int(time.time())
-    output_path = f"gradcam/{timestamp}.jpg"
+    output_path = f"gradcam/{img_id}.jpg"
     cv2.imwrite(output_path, cam_image)
 
     log(f"FullGradCAM image saved at: {output_path}")
-    return f"/static/gradcam/{timestamp}.jpg"
+    return f"/static/{output_path}"
+
+
+@app.route("/feedback", methods=["POST"])
+def feedback():
+    log()
+    global running_accuracy
+
+    try:
+        data = request.get_json()
+        image_id = data.get("id")
+        correct = data.get("correct")
+
+        log(f"Feedback received for {image_id=}: {correct=}")
+        if correct:
+            accuracy_data["correct"] += 1
+            accuracy_data["test_size"] += 1
+            running_accuracy = accuracy_data["correct"] / accuracy_data["test_size"]
+            return jsonify({"status": "ok"}), 200
+    except Exception as e:
+        log("Error processing feedback: " + str(e))
+        return jsonify({"error": f"Invalid feedback request: {e}"}), 400
+
+    # Negative feedback processing
+    csv_path = "dataset/metadata_uploaded.csv"
+    df = pd.read_csv(csv_path)
+    filename = f"{image_id}.jpg"
+
+    row_index = df[df["filename"] == filename].index[0]
+    current_target = df.loc[row_index, "target"]
+    current_protector_target = df.loc[row_index, "protector_target"]
+
+    new_target = 1 if current_target == 0 else 0
+
+    if current_protector_target == new_target:
+        accuracy_data["test_size"] += 1
+        running_accuracy = accuracy_data["correct"] / accuracy_data["test_size"]
+        df.loc[row_index, "target"] = new_target
+        df.to_csv(csv_path, index=False)
+        log(f"Target value toggled for {image_id}: {current_target} -> {new_target}")
+
+    return jsonify({"status": "ok"}), 200
+
+
+def check_accuracy():
+    log(f"Current accuracy: {running_accuracy}")
+    delta = running_accuracy - accuracy_data["accuracy"]
+    if delta <= -args.threshold:
+        log(f"Accuracy dropped by {delta:.2f}, updating accuracy file")
+        # DAFARE: implement retraining logic here
+        log("Retraining ProtectorNet...")
 
 
 @app.route("/health")
@@ -154,20 +225,31 @@ if __name__ == "__main__":
     parser.add_argument(
         "--detector_ckpt", type=str, default="dima806/deepfake_vs_real_image_detection"
     )
+    parser.add_argument("--accuracy_file", type=str, required=True)
     parser.add_argument("--device", type=str, default="auto", choices=["auto", "cpu"])
     parser.add_argument(
         "--processor", type=str, default="dima806/deepfake_vs_real_image_detection"
     )
     parser.add_argument("--protector_ckpt", type=str, required=True)
+    parser.add_argument(
+        "--threshold", type=int, default=0.1, help="Threshold for ProtectorNet"
+    )
 
     args = parser.parse_args()
 
     device = get_device(args.device)
     detector = load_model(args.detector_ckpt, device=args.device)
     detector.eval()
+    detector.config.output_hidden_states = True
     protector = ProtectorNet.load_from_checkpoint(args.protector_ckpt)
     protector.eval()
     processor = AutoImageProcessor.from_pretrained(args.processor, use_fast=True)
+
+    with open(args.accuracy_file, "r") as f:
+        accuracy_data = json.load(f)
+
+    running_accuracy = accuracy_data["accuracy"]
+    accuracy_data["correct"] = int(accuracy_data["test_size"] * running_accuracy)
 
     log("Server started")
     app.run(host="0.0.0.0", port=5555)

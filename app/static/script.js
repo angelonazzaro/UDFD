@@ -20,10 +20,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const initialState = document.getElementById('initialState');
   const loadingState = document.getElementById('loadingState');
   const resultState = document.getElementById('resultState');
-  const uploadCheck = document.getElementById('uploadCheck');
   const explainCheck = document.getElementById('explainCheck');
   const gradcamState = document.getElementById('gradcamState');
   const gradcamImage = document.getElementById('gradcamImage');
+  const feedbackSection = document.getElementById('feedbackSection');
+  const feedbackYesBtn = document.getElementById('feedbackYesBtn');
+  const feedbackNoBtn = document.getElementById('feedbackNoBtn');
 
   // Bootstrap Toast Elements
   const liveToast = document.getElementById('liveToast');
@@ -31,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const toast = new bootstrap.Toast(liveToast);
 
   let uploadedFile = null;
+  let currentImageId = null;
 
   // --- Functions ---
 
@@ -86,19 +89,22 @@ document.addEventListener('DOMContentLoaded', () => {
     resultState.style.display = 'none';
     loadingState.style.display = 'none';
     gradcamState.style.display = 'none';
+    feedbackSection.style.display = 'none';
     resultState.innerHTML = '';
     gradcamImage.src = ''; // Reset Grad-CAM image
   }
 
   /**
    * Displays the classification results with progress bars.
+   * @param {string} id - The ID of the classified image.
    * @param {number} real - The percentage for 'Real'.
    * @param {number} fake - The percentage for 'Fake'.
    * @param {string} [gradcamPath] - Optional path to the Grad-CAM image.
    */
-  function displayResults(real, fake, gradcamPath) {
+  function displayResults(id, real, fake, gradcamPath) {
+    currentImageId = id;
     resultState.style.display = 'block';
-    const resultHTML = `
+    resultState.innerHTML = `
       <h4 class="mb-4 text-center">Analysis Complete</h4>
 
       <div class="mb-4 w-100">
@@ -121,7 +127,6 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
     `;
-    resultState.innerHTML = resultHTML;
 
     if (gradcamPath) {
       gradcamImage.src = gradcamPath;
@@ -129,6 +134,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       gradcamState.style.display = 'none';
     }
+
+    feedbackSection.style.display = 'block';
 
     if (real + fake !== 100.0) {
       showAlert('WUT?');
@@ -149,6 +156,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     toastBody.textContent = message;
     toast.show();
+  }
+
+  /**
+   * Sends feedback to the server.
+   * @param {boolean} isCorrect - Whether the prediction was correct.
+   */
+  async function sendFeedback(isCorrect) {
+    if (!currentImageId) return;
+
+    try {
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: currentImageId,
+          correct: isCorrect
+        }),
+      });
+
+      if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
+      const json = await response.json();
+      if (json.error) throw new Error(json.error);
+
+      showAlert('Thank you for your feedback!');
+    } catch (err) {
+      console.error('Feedback Error:', err);
+      showAlert(`Could not send feedback: ${err.message}`, 'error');
+    } finally {
+      feedbackSection.style.display = 'none';
+    }
   }
 
   // Setup drag and drop listeners.
@@ -190,12 +229,12 @@ document.addEventListener('DOMContentLoaded', () => {
     initialState.style.display = 'none';
     resultState.style.display = 'none';
     gradcamState.style.display = 'none';
+    feedbackSection.style.display = 'none';
     loadingState.style.display = 'block';
     classifyBtn.disabled = true;
 
     const formData = new FormData();
     formData.append('image', uploadedFile);
-    formData.append('upload', uploadCheck.checked);
     formData.append('explain', explainCheck.checked);
 
     let resultData, fetchError;
@@ -232,8 +271,10 @@ document.addEventListener('DOMContentLoaded', () => {
       showAlert(`An error occurred: ${fetchError.message}`, 'error');
       resetResultState();
     } else {
-      displayResults(resultData.real, resultData.fake, resultData.gradcam_image_path);
-      if (uploadCheck.checked) showAlert('Image uploaded successfully!', 'success');
+      displayResults(resultData.id, resultData.detector.real, resultData.detector.fake, resultData.gradcam_image_path);
     }
   });
+
+  feedbackYesBtn.addEventListener('click', () => sendFeedback(true));
+  feedbackNoBtn.addEventListener('click', () => sendFeedback(false));
 });

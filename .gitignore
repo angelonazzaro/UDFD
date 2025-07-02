@@ -182,11 +182,8 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-/dataset/
 .gradio
 .idea
 app/logs
 app/static/gradcam
 .DS_Store
-/app/static/trinita.mp3
-/dataset
