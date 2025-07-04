@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="logo.png" alt="UDFD logo" width="275"/>
+    <img src="./logo.png" alt="UDFD logo" width="275"/>
     <h1>Unisa Deep Fake Detector</h1>
     <h3>A web app for deep fake detection</h3>
 </div>
@@ -15,8 +15,8 @@
 
 # UDFD (Unisa Deep Fake Detector)
 
-Unisa Deep Fake Detector (UDFD) is a deep learning-based tool to distinguishing real face images from artificially generated ones. The project places particular emphasis on the aspects of 
-software engineering applied to artificial intelligence (AI), with the aim of developing a robust, reproducible and easily distributable application. 
+Unisa Deep Fake Detector (UDFD) is a deep learning-based tool to distinguishing real face images from artificially generated ones. The project places particular emphasis on the aspects of
+software engineering applied to artificial intelligence (AI), with the aim of developing a robust, reproducible and easily distributable application.
 
 ---
 
@@ -53,7 +53,7 @@ We implemented an _explainability module_ based on Full-GradCAM to show what par
 
 ## Fairness
 
-To mitigate possible biases arising from the data used to fine-tune the model, we balanced the dataset to have a uniform distribution between ethnicities and genders.  
+To mitigate possible biases arising from the data used to fine-tune the model, we balanced the dataset to have a uniform distribution between ethnicities and genders.
 The final dataset includes 4,000 images (50% real, 50% fake) with uniform distribution:
 
 ![race_gender_distribution_balanced](https://github.com/user-attachments/assets/94b87f70-b19e-4682-a641-9066863944a9)
@@ -79,7 +79,7 @@ We focused on reducing energy and resource usage by
 
 ---
 
-For more details on our implementation, please refer to the documentation available under `deliverables`. 
+For more details on our implementation, please refer to the documentation available under `deliverables`.
 
 # Demo
 
@@ -95,24 +95,24 @@ To install the necessary requirements for the project, please follow the steps b
 Verify you have Python installed on your machine. The project is compatible with Python `3.10` or higher.
 
 If you do not have Python installed, please refer to the official [Python Guide](https://www.python.org/downloads/).
-## Creating the Virtual Environment 
-It's strongly recommended to create a virtual environment for the project and activate it before proceeding. 
+## Creating the Virtual Environment
+It's strongly recommended to create a virtual environment for the project and activate it before proceeding.
 Feel free to use any Python package manager to create the virtual environment. However, for a smooth installation of the requirements we recommend you use `pip`. Please refer to [Creating a virtual environment](https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/#creating-a-virtual-environment).
 
-You may skip this step, but please keep in mind that doing so could potentially lead to conflicts if you have other projects on your machine. 
+You may skip this step, but please keep in mind that doing so could potentially lead to conflicts if you have other projects on your machine.
 
-## Cloning the Repository 
+## Cloning the Repository
 To clone this repository, download and extract the `.zip` project files using the `<Code>` button on the top-right or run the following command in your terminal:
-```shell 
+```shell
 git clone https://github.com/frenkmadda/UDFD.git
 ```
 
 ## Installing Requirements
-To install the requirements, please: 
+To install the requirements, please:
 1. Make sure you have **activated the virtual environment where you installed the project's requirements**. If activated, your terminal, assuming you are using **bash**, should look like the following: ``(name-of-your-virtual-environment) user@user path``
 
 2. Install the project requirements using `pip`:
-```shell 
+```shell
 pip install -r requirements.txt
 ```
 
